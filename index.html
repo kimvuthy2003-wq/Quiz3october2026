@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>មេរៀនទី២ច្បាប់ចលនារបស់ញូតុន (ម៉ាស៊ីនអាតវ៉ូត)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kantumruy Pro', sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; overflow-x: hidden; } /* ទុកពណ៌ Background ងងឹតសម្រាប់តែផ្ទាំង Simulation 3D */
+
+        /* ----- Tab Navigation Styles ----- */
+        .tab-container {
+            display: flex; justify-content: center; background-color: #1e293b; padding: 10px 0;
+            border-bottom: 2px solid #334155; position: relative; z-index: 100;
+        }
+        .tab-btn {
+            background-color: #334155; color: #cbd5e1; border: none; padding: 10px 20px;
+            margin: 0 5px; cursor: pointer; font-size: 16px; border-radius: 8px; transition: 0.3s; font-weight: bold;
+        }
+        .tab-btn:hover { background-color: #475569; }
+        .tab-btn.active { background-color: #38bdf8; color: #0f172a; }
+        .tab-btn.quiz-active { background-color: #3498db; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ----- Simulation Container Styles ----- */
+        #sim-container { position: relative; width: 100vw; height: calc(100vh - 60px); }
+        #canvas-container { width: 100%; height: 100%; }
+        .ui-panel { position: absolute; top: 20px; left: 20px; width: 330px; background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(12px); border: 1px solid #475569; border-radius: 14px; padding: 20px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
+        .ui-panel h2 { font-size: 17px; color: #38bdf8; margin-bottom: 12px; border-bottom: 2px solid #334155; padding-bottom: 8px; }
+        .control-group { margin-bottom: 14px; }
+        .control-group label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; color: #e2e8f0; }
+        input[type=range] { width: 100%; height: 6px; accent-color: #38bdf8; cursor: pointer; }
+        .btn-group { display: flex; gap: 10px; margin-top: 18px; }
+        button.sim-btn { flex: 1; padding: 11px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .btn-start { background: #10b981; } .btn-start:hover { background: #059669; }
+        .btn-reset { background: #ef4444; } .btn-reset:hover { background: #dc2626; }
+        
+        .data-panel { position: absolute; bottom: 20px; right: 20px; width: 290px; background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(12px); border: 1px solid #475569; border-radius: 14px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
+        .data-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 10px; color: #cbd5e1; }
+        .data-val { font-weight: bold; color: #38bdf8; font-family: monospace; font-size: 16px; background: #0f172a; padding: 2px 8px; border-radius: 6px; border: 1px solid #334155; }
+        .instructions { position: absolute; top: 20px; right: 20px; background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(8px); padding: 10px 16px; border-radius: 20px; font-size: 13px; color: #e2e8f0; border: 1px solid #475569; }
+
+        /* ----- Quiz Styles (ពណ៌សផ្ទៃមេឃ) ----- */
+        #quiz-tab { background-color: #f0f8ff; padding: 20px; min-height: calc(100vh - 60px); }
+        #quiz-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); color: #333; }
+        .quiz-header { text-align: center; color: #2c3e50; margin-bottom: 20px; font-size: 22px; font-weight: bold;}
+        
+        .student-info { background: #e8f4f8; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: left; }
+        .student-info h3 { margin-top: 0; color: #c0392b; font-size: 18px; margin-bottom: 15px;}
+        .student-info label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .student-info select { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc; background: white; color: #333; font-size: 16px; font-family: inherit; }
+        
+        .question-block { text-align: left; background: #fdfbfb; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db; margin-bottom: 15px; }
+        .question-block p { font-weight: bold; margin-bottom: 10px; color: #333; line-height: 1.5; margin-top: 0;}
+        .question-block label.option { display: block; margin-bottom: 8px; cursor: pointer; color: #333; padding: 5px;}
+        .question-block label.option:hover {background: #e2e8f0; border-radius: 4px;}
+        
+        .submit-btn { background-color: #2ecc71; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; max-width: 300px; margin: 20px auto; display: block; font-family: inherit; font-weight: bold;}
+        .submit-btn:hover { background-color: #27ae60; }
+        .submit-btn:disabled { background: #95a5a6; cursor: not-allowed; }
+
+        /* ----- ផ្ទាំងលោត Modal (Popup) Styles ----- */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background-color: white; padding: 30px; border-radius: 12px;
+            text-align: center; max-width: 400px; width: 90%; color:#111;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3); animation: popIn 0.3s ease-out;
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-box h3 { color: #2ecc71; margin-top: 0; font-size: 24px; margin-bottom: 10px;}
+        .modal-box p { color: #333; font-size: 18px; margin-bottom: 25px; line-height: 1.5;}
+        .modal-btn {
+            background-color: #3498db; color: white; border: none; padding: 10px 30px;
+            font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: inherit;
+        }
+        .modal-btn:hover { background-color: #2980b9; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div class="tab-container">
+        <button class="tab-btn active" onclick="openTab(event, 'sim-tab')">១. ការពិសោធន៍ម៉ាស៊ីនអាតវ៉ូត</button>
+        <button class="tab-btn" onclick="openTab(event, 'quiz-tab')">២. កម្រងសំណួរ (Quiz ៣)</button>
+    </div>
+
+    <!-- ផ្នែកទី១: 3D Simulation -->
+    <div id="sim-tab" class="tab-content active">
+        <div id="sim-container">
+            <div id="canvas-container"></div>
+            <div class="instructions">🖱️ ចុចទាញ ឬបង្វិល Mouse ដើម្បីមើលទិដ្ឋភាព 3D</div>
+            <div class="ui-panel">
+                <h2>⚙️ ប៉ារ៉ាម៉ែត្រម៉ាស៊ីនអាតវ៉ូត</h2>
+                <div class="control-group">
+                    <label><span>ម៉ាសវត្ថុ A (m<sub>A</sub>):</span><span id="mA-val" style="color:#ff2a5f; font-weight:bold;">2.0 kg</span></label>
+                    <input type="range" id="mA" min="0.5" max="10" value="2.0" step="0.1">
+                </div>
+                <div class="control-group">
+                    <label><span>ម៉ាសវត្ថុ B (m<sub>B</sub>):</span><span id="mB-val" style="color:#00d2ff; font-weight:bold;">4.0 kg</span></label>
+                    <input type="range" id="mB" min="0.5" max="10" value="4.0" step="0.1">
+                </div>
+                <div class="control-group">
+                    <label><span>សំទុះទាញនាំ (g):</span><span id="g-val" style="color:#facc15; font-weight:bold;">9.8 m/s²</span></label>
+                    <input type="range" id="g" min="1" max="20" value="9.8" step="0.1">
+                </div>
+                <div class="btn-group">
+                    <button class="sim-btn btn-start" id="btn-toggle">▶ ចាប់ផ្តើម</button>
+                    <button class="sim-btn btn-reset" id="btn-reset">🔄 កំណត់ឡើងវិញ</button>
+                </div>
+            </div>
+            <div class="data-panel">
+                <h2>📊 លទ្ធផលរូបវិទ្យា</h2>
+                <div class="data-row"><span>សំទុះប្រព័ន្ធ (a):</span><span class="data-val" id="disp-a">0.00 m/s²</span></div>
+                <div class="data-row"><span>តង់ស្យុងខ្សែ (T):</span><span class="data-val" id="disp-T">0.00 N</span></div>
+                <div class="data-row"><span>ល្បឿនបច្ចុប្បន្ន (v):</span><span class="data-val" id="disp-v">0.00 m/s</span></div>
+                <div class="data-row"><span>ទិសដៅចលនា:</span><span class="data-val" id="disp-dir" style="font-size:13px;">ឈប់ស្ងៀម</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ផ្នែកទី២: Quiz -->
+    <div id="quiz-tab" class="tab-content">
+        <div id="quiz-container">
+            <h2 class="quiz-header">កម្រងសំណួរទី៣៖ ម៉ាស៊ីនអាតវ៉ូត (សរុប ៥០ ពិន្ទុ)</h2>
+            
+            <div class="student-info">
+                <h3>សូមបំពេញព័ត៌មានមុនពេលចាប់ផ្តើម៖</h3>
+                <label>ជ្រើសរើសថ្នាក់៖</label>
+                <select id="classSelect" onchange="updateStudentList()">
+                    <option value="G10A">ថ្នាក់ទី ១០A</option>
+                    <option value="G10B">ថ្នាក់ទី ១០B</option>
+                </select>
+                
+                <label>ជ្រើសរើសឈ្មោះ៖</label>
+                <select id="nameSelect"></select>
+            </div>
+
+            <div class="question-block">
+                <p>១. នៅក្នុងម៉ាស៊ីនអាតវ៉ូត ប្រសិនបើម៉ាស mA ធំជាងម៉ាស mB តើប្រព័ន្ធនឹងធ្វើចលនាយ៉ាងដូចម្តេច?</p>
+                <label class="option"><input type="radio" name="q1" value="10"> ក. mA ចុះក្រោម ហើយ mB ឡើងលើ</label>
+                <label class="option"><input type="radio" name="q1" value="0"> ខ. mB ចុះក្រោម ហើយ mA ឡើងលើ</label>
+                <label class="option"><input type="radio" name="q1" value="0"> គ. ប្រព័ន្ធនៅស្ងៀមលំនឹង</label>
+            </div>
+            <div class="question-block">
+                <p>២. តើរូបមន្តណាមួយដែលត្រឹមត្រូវសម្រាប់គណនាសំទុះ (a) នៃប្រព័ន្ធម៉ាស៊ីនអាតវ៉ូត (ដោយឧបមាថាគ្មានកកិត)?</p>
+                <label class="option"><input type="radio" name="q2" value="0"> ក. a = (mA + mB) * g / (mA - mB)</label>
+                <label class="option"><input type="radio" name="q2" value="10"> ខ. a = |mB - mA| * g / (mA + mB)</label>
+                <label class="option"><input type="radio" name="q2" value="0"> គ. a = (mA * mB) * g</label>
+            </div>
+            <div class="question-block">
+                <p>៣. ប្រសិនបើគេផ្លាស់ប្តូរម៉ាសវត្ថុទាំងពីរឱ្យមានតម្លៃស្មើគ្នា (mA = mB) តើសំទុះ (a) របស់ប្រព័ន្ធនឹងមានតម្លៃប៉ុន្មាន?</p>
+                <label class="option"><input type="radio" name="q3" value="0"> ក. a = g (9.8 m/s²)</label>
+                <label class="option"><input type="radio" name="q3" value="10"> ខ. a = 0 m/s² (នៅស្ងៀម ឬមានល្បឿនថេរ)</label>
+                <label class="option"><input type="radio" name="q3" value="0"> គ. a កើនឡើងទ្វេដង</label>
+            </div>
+            <div class="question-block">
+                <p>៤. ផ្អែកលើការពិសោធន៍ តើកម្លាំងតង់ស្យុងខ្សែ (T) មានតម្លៃខុសគ្នានៅសងខាងរ៉កដែរឬទេ (ឧបមារ៉កស្រាលនិងគ្មានកកិត)?</p>
+                <label class="option"><input type="radio" name="q4" value="10"> ក. មានតម្លៃស្មើគ្នានៅគ្រប់ចំណុចនៃខ្សែ</label>
+                <label class="option"><input type="radio" name="q4" value="0"> ខ. ខ្សែខាងម៉ាសធំ មានតង់ស្យុងធំជាង</label>
+                <label class="option"><input type="radio" name="q4" value="0"> គ. ខ្សែខាងម៉ាសតូច មានតង់ស្យុងធំជាង</label>
+            </div>
+            <div class="question-block">
+                <p>៥. ប្រសិនបើគេធ្វើការពិសោធន៍នេះនៅលើឋានព្រះច័ន្ទ (ទីដែលមានតម្លៃ g តូចជាងផែនដី ៦ ដង) តើសំទុះ (a) របស់ប្រព័ន្ធនឹងប្រែប្រួលយ៉ាងណា បើធៀបនឹងផែនដី?</p>
+                <label class="option"><input type="radio" name="q5" value="0"> ក. សំទុះ (a) នឹងមានតម្លៃកើនឡើង ៦ ដង</label>
+                <label class="option"><input type="radio" name="q5" value="10"> ខ. សំទុះ (a) នឹងថយចុះ ៦ ដង</label>
+                <label class="option"><input type="radio" name="q5" value="0"> គ. សំទុះ (a) នៅតែរក្សាតម្លៃដដែល</label>
+            </div>
+
+            <button id="submitBtn" class="submit-btn" onclick="submitQuiz()">បញ្ជូនចម្លើយទៅកាន់គ្រូ</button>
+        </div>
+    </div>
+
+    <!-- លាក់ឈ្មោះសិស្សពី CSV ខែតុលា 2026 -->
+    <div id="names-10A" style="display: none;">
+        <option value="ណុប​ សុខវិជ្ជា">ណុប​​ សុខវិជ្ជា</option><option value="អែម គុណនីកា">អែម គុណនីកា</option><option value="រិទ្ធ សុករក្សា">រិទ្ធ សុករក្សា</option><option value="លឹមថា អ៊ួងសម្ប័ទ">លឹមថា អ៊ួងសម្ប័ទ</option><option value="ភាព ហេងរតនៈ">ភាព ហេងរតនៈ</option><option value="ញ៉ាំ វង្សវឌ្ឍនៈ">ញ៉ាំ វង្សវឌ្ឍនៈ</option><option value="ហាន ស៊ុនឆាយ">ហាន ស៊ុនឆាយ</option><option value="យន ចានណាលីន">យន ចានណាលីន</option><option value="ហេង គីមឈីង">ហេង គីមឈីង</option><option value="ជូ សុវណ្ណអ៊ីហុង">ជូ សុវណ្ណអ៊ីហុង</option><option value="គឹម ដូណា">គឹម ដូណា</option><option value="សុខុម​​​​​​​​ សូរីតា">សុខុម​​​​​​​​ សូរីតា</option><option value="ភូ វីរៈជាតិ">ភូ វីរៈជាតិ</option><option value="អ៊ី ​ឆាយអាន">អ៊ី ​ឆាយអាន</option><option value="ថាន មិថុនា">ថាន មិថុនា</option><option value="អ៊ុក ​ហេងនិម្មល">អ៊ុក ​ហេងនិម្មល</option><option value="អេង ស៊ាងតូង">អេង ស៊ាងតូង</option><option value="ភូ លីហ៊ាង">ភូ លីហ៊ាង</option><option value="ចេង ម៉េងឈាង">ចេង ម៉េងឈាង</option><option value="សុិន ​អែនជីលីតា">សុិន ​អែនជីលីតា</option><option value="គុណ រចនា">គុណ រចនា</option><option value="ហេង​ លីហ្សា">ហេង​ លីហ្សា</option>
+    </div>
+    <div id="names-10B" style="display: none;">
+        <option value="សឺន ចន្ធា">សឺន ចន្ធា</option><option value="លន់ គីមឡាង">លន់ គីមឡាង</option><option value="ជួប ពេជ្រច័ន្ទម៉ាណា">ជួប ពេជ្រច័ន្ទម៉ាណា</option><option value="ជីវ សុម៉ីជីង">ជីវ សុម៉ីជីង</option><option value="តាន ទិព្វលីហ្សា">តាន ទិព្វលីហ្សា</option><option value="ស៊ុន ហាចសុវរៈ">ស៊ុន ហាចសុវរៈ</option><option value="ហង្ស មយូរ៉ា">ហង្ស មយូរ៉ា</option><option value="វ៉ែន គង់សុខពិសី">វ៉ែន គង់សុខពិសី</option><option value="ឈឹម មុនីរតន៏">ឈឹម មុនីរតន៏</option><option value="ស៊ុយ ធាយ៉ារ៉ា">ស៊ុយ ធាយ៉ារ៉ា</option><option value="ឡាយ ហ្គ្រួចថូ">ឡាយ ហ្គ្រួចថូ</option><option value="ចន ចំរុង">ចន ចំរុង</option><option value="រដ្ឋ វេហា">រដ្ឋ វេហា</option><option value="លី ថាហ្វូ">លី ថាហ្វូ</option><option value="វី រតនា">វី រតនា</option><option value="ធា វីរ:យុទ្ធ">ធា វីរ:យុទ្ធ</option><option value="ឈុត​ គឹមសួគ៍">ឈុត​ គឹមសួគ៍</option><option value="ផល សុផាណិត">ផល សុផាណិត</option><option value="ច្រិច​ ម៉ាយុ">ច្រិច​ ម៉ាយុ</option><option value="ឃី ច័ន្ទរាស័ក្ត">ឃី ច័ន្ទរាស័ក្ត</option><option value="ជិន ស្រីនីត">ជិន ស្រីនីត</option><option value="ឌី សុគន្ធារី">ឌី សុគន្ធារី</option><option value="សន ចិន្ដា">សន ចិន្ដា</option><option value="អេន សុខហេង">អេន សុខហេង</option> <option value="យានវីរះ រតនះ">យានវីរះ រតនះ</option>
+    </div>
+
+    <!-- ផ្ទាំង Popup Modal -->
+    <div id="successModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>✅ ជោគជ័យ!</h3>
+            <p id="modalMessage">ពិន្ទុរបស់អ្នកត្រូវបានបញ្ជូន</p>
+            <button class="modal-btn" onclick="closeModal()">OK (បិទផ្ទាំង)</button>
+        </div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            let tabcontent = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+                tabcontent[i].classList.remove("active");
+            }
+            let tablinks = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+                tablinks[i].className = tablinks[i].className.replace(" quiz-active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            
+            if(tabName === 'quiz-tab') evt.currentTarget.className += " quiz-active";
+            else evt.currentTarget.className += " active";
+        }
+
+        function updateStudentList() {
+            let classSelect = document.getElementById("classSelect").value;
+            let nameSelect = document.getElementById("nameSelect");
+            nameSelect.innerHTML = '<option value="">-- សូមជ្រើសរើសឈ្មោះរបស់អ្នក --</option>';
+            if (classSelect === "G10A") nameSelect.innerHTML += document.getElementById("names-10A").innerHTML;
+            else if (classSelect === "G10B") nameSelect.innerHTML += document.getElementById("names-10B").innerHTML;
+        }
+        window.onload = updateStudentList;
+
+        function showModal(message) {
+            document.getElementById("modalMessage").innerText = message;
+            document.getElementById("successModal").style.display = "flex";
+        }
+        function closeModal() { document.getElementById("successModal").style.display = "none"; }
+
+        function submitQuiz() {
+            let cls = document.getElementById('classSelect').value;
+            let name = document.getElementById('nameSelect').value;
+            if (!cls || !name) return alert("សូមជ្រើសរើសឈ្មោះ និងថ្នាក់របស់អ្នកជាមុនសិន!");
+
+            let totalScore = 0; let answeredCount = 0;
+            for (let i = 1; i <= 5; i++) {
+                let radios = document.getElementsByName('q' + i);
+                for (let j = 0; j < radios.length; j++) {
+                    if (radios[j].checked) { totalScore += parseInt(radios[j].value); answeredCount++; break; }
+                }
+            }
+
+            if (answeredCount < 5) return alert("សូមឆ្លើយសំណួរឱ្យបានគ្រប់ទាំង ៥ សំណួរ!");
+
+            let btn = document.getElementById('submitBtn'); 
+            btn.innerText = "កំពុងបញ្ជូន..."; btn.disabled = true; // បិទមិនឱ្យចុចពីរដង
+
+            // ⚠️ ដាក់ Web App URL ថ្មីនៅទីនេះ ⚠️
+            const scriptURL = 'https://script.google.com/macros/s/AKfycbxMtAGPu-YprT3P3JRZHHIAN24xa6nhn69DxZ6M6P4iWXMrnEOtwDUPQ3lbSy1aIbqW/exec'; 
+
+            let formData = new URLSearchParams();
+            formData.append("sheetName", cls); 
+            formData.append("name", name);
+            formData.append("score", totalScore);
+            formData.append("quizNumber", "Q3"); // ចូល Q3 (Column G)
+
+            if(scriptURL.includes('YOUR_GOOGLE')){
+                alert("សូមដាក់ Web App URL នៅក្នុងកូដជាមុនសិន!"); btn.innerText = "បញ្ជូនចម្លើយទៅកាន់គ្រូ"; btn.disabled = false; return;
+            }
+
+            fetch(scriptURL, { method: "POST", body: formData })
+            .then(response => response.text())
+            .then(result => {
+                if(result === "Success") {
+                    showModal(`កិច្ចការរបស់អ្នកត្រូវបានបញ្ជូនទៅលោកគ្រូរួចរាល់ដោយជោគជ័យ!`);
+                    btn.innerText = "បានបញ្ជូនរួចរាល់ ✅"; 
+                } else {
+                    alert("មានបញ្ហា៖ " + result); btn.innerText = "បញ្ជូនចម្លើយទៅកាន់គ្រូ"; btn.disabled = false;
+                }
+            })
+            .catch(error => { alert("មានបញ្ហាបណ្តាញទាក់ទង!"); btn.innerText = "បញ្ជូនចម្លើយទៅកាន់គ្រូ"; btn.disabled = false; });
+        }
+
+        // --- 3D Simulation Logic ---
+        let mA = 2.0, mB = 4.0, gVal = 9.8;
+        let posA = 5.0, posB = 5.0;
+        let velocity = 0, acceleration = 0, tension = 0;
+        let isRunning = false, lastTime = null;
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1e293b);
+        let simWidth = window.innerWidth, simHeight = window.innerHeight - 60; 
+        const camera = new THREE.PerspectiveCamera(45, simWidth / simHeight, 0.1, 1000);
+        camera.position.set(0, 7, 20);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(simWidth, simHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 6, 0);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+        dirLight.position.set(8, 18, 10); dirLight.castShadow = true; scene.add(dirLight);
+
+        scene.add(new THREE.GridHelper(30, 30, 0x38bdf8, 0x334155));
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+        const standMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
+        const baseStand = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 12.8, 32), standMat);
+        baseStand.position.set(0, 6.4, -1.0); baseStand.castShadow = true; scene.add(baseStand);
+        const armStand = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 2.0), standMat);
+        armStand.position.set(0, 12.5, -0.2); armStand.castShadow = true; scene.add(armStand);
+
+        const pulleyGroup = new THREE.Group();
+        const pulley = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.4, 48), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+        pulley.rotation.x = Math.PI / 2; pulley.castShadow = true; pulleyGroup.add(pulley);
+        pulleyGroup.position.set(0, 12.0, 0.5); scene.add(pulleyGroup);
+
+        const meshA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshStandardMaterial({ color: 0xff2a5f }));
+        meshA.castShadow = true; meshA.position.set(-1.5, 5.0, 0.5); scene.add(meshA);
+        const meshB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x00d2ff }));
+        meshB.castShadow = true; meshB.position.set(1.5, 5.0, 0.5); scene.add(meshB);
+
+        const stringGeo = new THREE.BufferGeometry();
+        const stringLine = new THREE.Line(stringGeo, new THREE.LineBasicMaterial({ color: 0xf8fafc, linewidth: 3 }));
+        scene.add(stringLine);
+
+        function getHalfHeight(mass) { return (1.2 * (Math.pow(mass, 1/3) * 0.75)) / 2; }
+        function updateRope() { stringGeo.setFromPoints([ new THREE.Vector3(-1.5, posA + getHalfHeight(mA), 0.5), new THREE.Vector3(-1.5, 12.0, 0.5), new THREE.Vector3(1.5, 12.0, 0.5), new THREE.Vector3(1.5, posB + getHalfHeight(mB), 0.5) ]); }
+        function updateMeshScales() { meshA.scale.setScalar(Math.pow(mA, 1/3) * 0.75); meshB.scale.setScalar(Math.pow(mB, 1/3) * 0.75); clampPositions(); }
+        
+        function clampPositions() {
+            let limit = false, hA = getHalfHeight(mA), hB = getHalfHeight(mB);
+            let maxA = 12.0 - 1.5 - hA, maxB = 12.0 - 1.5 - hB;
+            if (posA >= maxA) { posA = maxA; posB = 10.0 - posA; limit = true; }
+            else if (posB <= hB) { posB = hB; posA = 10.0 - posB; limit = true; }
+            if (posB >= maxB) { posB = maxB; posA = 10.0 - posB; limit = true; }
+            else if (posA <= hA) { posA = hA; posB = 10.0 - posA; limit = true; }
+            meshA.position.y = posA; meshB.position.y = posB;
+            updateRope(); return limit;
+        }
+
+        function calculatePhysics() {
+            acceleration = ((mB - mA) / (mA + mB)) * gVal; tension = (2 * mA * mB / (mA + mB)) * gVal;
+            document.getElementById('disp-a').innerText = Math.abs(acceleration).toFixed(2) + " m/s²";
+            document.getElementById('disp-T').innerText = tension.toFixed(2) + " N";
+            document.getElementById('disp-dir').innerText = acceleration > 0.01 ? "B ចុះ / A ឡើង" : (acceleration < -0.01 ? "A ចុះ / B ឡើង" : "លំនឹង");
+        }
+
+        document.getElementById('mA').addEventListener('input', e => { mA = parseFloat(e.target.value); document.getElementById('mA-val').innerText = mA.toFixed(1)+"kg"; updateMeshScales(); calculatePhysics(); });
+        document.getElementById('mB').addEventListener('input', e => { mB = parseFloat(e.target.value); document.getElementById('mB-val').innerText = mB.toFixed(1)+"kg"; updateMeshScales(); calculatePhysics(); });
+        document.getElementById('g').addEventListener('input', e => { gVal = parseFloat(e.target.value); document.getElementById('g-val').innerText = gVal.toFixed(1)+"m/s²"; calculatePhysics(); });
+        
+        document.getElementById('btn-toggle').addEventListener('click', () => {
+            if (clampPositions() && !isRunning) return; 
+            isRunning = !isRunning;
+            document.getElementById('btn-toggle').innerText = isRunning ? "⏸️ ផ្អាក" : "▶️ ចាប់ផ្តើម";
+            document.getElementById('btn-toggle').style.background = isRunning ? "#f59e0b" : "#10b981";
+            lastTime = performance.now();
+        });
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            isRunning = false; document.getElementById('btn-toggle').innerText = "▶️ ចាប់ផ្តើម"; document.getElementById('btn-toggle').style.background = "#10b981";
+            posA = 5.0; posB = 5.0; velocity = 0; document.getElementById('disp-v').innerText = "0.00 m/s"; updateMeshScales(); calculatePhysics();
+        });
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+            if (isRunning && lastTime) {
+                let dt = Math.min((now - lastTime) / 1000, 0.04);
+                velocity += acceleration * dt; posB -= velocity * dt; posA += velocity * dt;
+                if (clampPositions()) { velocity = 0; isRunning = false; document.getElementById('btn-toggle').innerText = "▶️ ចាប់ផ្តើម"; document.getElementById('btn-toggle').style.background = "#10b981"; }
+                pulleyGroup.rotation.z += (velocity / 1.5) * dt; document.getElementById('disp-v').innerText = Math.abs(velocity).toFixed(2) + " m/s";
+            }
+            lastTime = now; renderer.render(scene, camera);
+        }
+        updateMeshScales(); calculatePhysics(); animate();
+        window.addEventListener('resize', () => { simWidth = window.innerWidth; simHeight = window.innerHeight - 60; camera.aspect = simWidth / simHeight; camera.updateProjectionMatrix(); renderer.setSize(simWidth, simHeight); });
+    </script>
+</body>
+</html>
